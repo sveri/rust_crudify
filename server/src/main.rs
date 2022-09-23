@@ -1,19 +1,16 @@
+use axum::routing::Route;
 use axum::{routing::get, Extension, Router};
-use axum::body::{boxed, Body};
-use axum::http::{Response, StatusCode};
 
-use axum::extract::{Json, Path, Query};
+use axum::extract::{Json};
 
 use serde::Serialize;
 use serde_json::{json, Value};
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
-use sqlx::{FromRow, Row};
+use sqlx::{FromRow, Row, Pool, Postgres};
 
 use uuid::Uuid;
 
-use tower::{ServiceBuilder, ServiceExt};
-use tower_http::services::ServeDir;
 
 #[derive(FromRow, Clone, Debug, Serialize)]
 struct Entity {
@@ -42,26 +39,20 @@ async fn main() {
         .max_connections(15)
         .connect("postgres://postgres:postgres@localhost/postgres")
         .await
-        .expect("can connect to database");
-
-    // build our application with a single route
-    let app = Router::new()
-        // .route("/", get(|| async { "Hello, Worasdfld!" }))
-        .route("/api/entity", get(get_entities))
-        .merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
-        // .fallback(get(|req| async move {
-        //     match ServeDir::new("../dist").oneshot(req).await {
-        //         Ok(res) => res.map(boxed),
-        //         Err(err) => Response::builder()
-        //             .status(StatusCode::INTERNAL_SERVER_ERROR)
-        //             .body(boxed(Body::from(format!("error: {err}"))))
-        //             .expect("error response"),
-        //     }
-        // }))
-        .layer(Extension(pool));
+        .expect("cannot connect to database");
 
     axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
-        .serve(app.into_make_service())
+        .serve(app(pool).into_make_service())
         .await
         .unwrap();
 }
+
+fn app(pool: Pool<Postgres>) -> Router {
+    Router::new()
+    .route("/api/entity", get(get_entities))
+    .merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
+    .layer(Extension(pool))
+}
+
+
+#[cfg(test)] mod tests;

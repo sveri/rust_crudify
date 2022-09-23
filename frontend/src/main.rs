@@ -1,20 +1,25 @@
+mod components;
+
 use gloo_net::http::Request;
+use wasm_bindgen_futures::spawn_local;
 use yew::prelude::*;
 use yew_router::prelude::*;
-use wasm_bindgen_futures::spawn_local;
+
+use components::entity_builder::EntityBuilder;
+
 
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
     #[at("/")]
-    Home,
+    EntityBuilder,
     #[at("/hello-server")]
     HelloServer,
 }
 
 fn switch(routes: &Route) -> Html {
     match routes {
-        Route::Home => html! { <h1>{ "HelloasdfFrontend" }</h1> },
         Route::HelloServer => html! { <HelloServer /> },
+        Route::EntityBuilder => html! { <EntityBuilder /> },
     }
 }
 
@@ -30,8 +35,6 @@ fn app() -> Html {
 #[function_component(HelloServer)]
 fn hello_server() -> Html {
     let data = use_state(|| None);
-
-    // Request `/api/hello` once
     {
         let data = data.clone();
         use_effect(move || {
