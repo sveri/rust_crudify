@@ -17,4 +17,5 @@ sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "any", "postgres
 tower = "0.4.13"
 tower-http = "0.3.4"
 
-
+[dev-dependencies]
+http-body = "0.4.5"
