@@ -1,9 +1,11 @@
 
-use axum::{routing::get, Extension, Router};
+use axum::body::Body;
+use axum::http::Request;
+use axum::{routing::get, routing::post, Extension, Router};
 
 use axum::extract::{Json};
 
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
@@ -12,10 +14,15 @@ use sqlx::{FromRow, Row, Pool, Postgres};
 use uuid::Uuid;
 
 
-#[derive(FromRow, Clone, Debug, Serialize)]
+#[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
 struct Entity {
     id: Uuid,
     body: Value,
+}
+
+async fn create_entity(Extension(pool): Extension<PgPool>, body: Request<Body>) -> Json<Value> {
+    let entity = Entity {id: Uuid::new_v4(), body: json!("asdflkj")};
+    Json(json!(entity))
 }
 
 async fn get_entities(Extension(pool): Extension<PgPool>) -> Json<Value> {
@@ -50,6 +57,7 @@ async fn main() {
 fn app(pool: Pool<Postgres>) -> Router {
     Router::new()
     .route("/api/entity", get(get_entities))
+    .route("/api/entity", post(create_entity))
     .merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
     .layer(Extension(pool))
 }
