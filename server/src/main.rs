@@ -14,7 +14,7 @@ use sqlx::{FromRow, Row, Pool, Postgres};
 use uuid::Uuid;
 
 
-#[derive(FromRow, Clone, Debug, Serialize, Deserialize)]
+#[derive(FromRow, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct Entity {
     id: Uuid,
     body: Value,
