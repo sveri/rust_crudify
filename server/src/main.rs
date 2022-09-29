@@ -1,3 +1,5 @@
+mod converter;
+
 
 use axum::body::Body;
 use axum::http::Request;
@@ -21,8 +23,13 @@ struct Entity {
 }
 
 async fn create_entity(Extension(pool): Extension<PgPool>, body: Request<Body>) -> Json<Value> {
+    
     let entity = Entity {id: Uuid::new_v4(), body: json!("asdflkj")};
     Json(json!(entity))
+}
+
+async fn create_table(table_name: &str, Extension(pool): Extension<PgPool>) {
+    sqlx::query("CREATE TABLE IF NOT EXISTS $1").bind(table_name).execute(&pool).await;
 }
 
 async fn get_entities(Extension(pool): Extension<PgPool>) -> Json<Value> {

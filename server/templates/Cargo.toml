@@ -1,0 +1,20 @@
+[package]
+name = ""
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+axum = { version = "0.5.16" }
+axum-extra = { version = "^0.3", features = ["spa"] }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4", "serde"] }
+serde = { version = "1.0.144", features = ["derive"] }
+serde_json = {version = "1.0.85"}
+
+sqlx = { version = "0.6.2", features = ["runtime-tokio-rustls", "any", "postgres", "uuid", "json"] }
+tower = "0.4.13"
+tower-http = "0.3.4"
+
+[dev-dependencies]
+http-body = "0.4.5"
+hyper = "0.14.20"
