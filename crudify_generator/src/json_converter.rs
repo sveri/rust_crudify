@@ -2,12 +2,6 @@
 
 use serde_json::{json, Value};
 
-pub struct InternalModel {
-    pub name: String
-}
-
-pub type InternalModels = Vec<InternalModel>;
-
 
 fn convert_to_internal_model(j: &Value) -> InternalModels {
     let mut internal_models = Vec::new();

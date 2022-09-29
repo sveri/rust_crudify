@@ -1,6 +1,6 @@
-use std::{ffi::OsStr, fs, io::Write, path::PathBuf};
+use std::{fs, io::Write, path::PathBuf};
 
-use super::json_converter::InternalModels;
+use super::InternalModels;
 
 fn create_app_fn(models: InternalModels) -> String {
     let mut code = r#"
@@ -62,38 +62,39 @@ fn write_code(code: &str, user_id: &str, file_name: &str) {
     main_rs.write_all(code.as_bytes()).unwrap();
 }
 
-fn write_model(models: InternalModels, user_id: &str) {
+fn write_model(user_id: &str, models: InternalModels) {
     let app_fn = create_app_fn(models);
 
     write_code(&app_fn, user_id, "main.rs");
 }
 
 fn get_cargo_toml(user_id: &str) -> String {
-    let cargo_toml = include_str!("../../templates/Cargo.toml");
+    let cargo_toml = include_str!("../templates/Cargo.toml");
     cargo_toml.replace("name = \"\"", format!("name = \"{}\"", user_id).as_str())
 }
 
-fn write_all(models: InternalModels, user_id: &str) {
+pub fn write_all(user_id: &str, models: InternalModels) {
     let cargo_toml = get_cargo_toml(user_id);
     let data_path = create_or_get_project_dir(user_id).join("Cargo.toml");
     let mut main_rs = fs::File::create(data_path).unwrap();
     main_rs.write_all(cargo_toml.as_bytes()).unwrap();
 
-    write_model(models, user_id);
+    write_model(user_id, models);
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::converter::json_converter::InternalModel;
 
     use super::*;
+
+    use super::super::InternalModel;
 
     #[test]
     fn test_write_all() {
         let models = vec![InternalModel {
             name: "Order".to_string(),
         }];
-        write_all(models, "user_id");
+        write_all("user_id", models);
     }
 
     // #[test]
