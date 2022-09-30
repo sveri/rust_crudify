@@ -1,4 +1,5 @@
 mod file_creator;
+mod main_file_creator;
 
 pub struct InternalModel {
     pub name: String,
