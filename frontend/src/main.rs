@@ -7,7 +7,6 @@ use yew_router::prelude::*;
 
 use components::entity_builder::EntityBuilder;
 
-
 #[derive(Clone, Routable, PartialEq)]
 enum Route {
     #[at("/")]
@@ -43,11 +42,7 @@ fn hello_server() -> Html {
                     let resp = Request::get("/api/entity").send().await.unwrap();
                     let result = {
                         if !resp.ok() {
-                            Err(format!(
-                                "Error fetching data {} ({})",
-                                resp.status(),
-                                resp.status_text()
-                            ))
+                            Err(format!("Error fetching data {} ({})", resp.status(), resp.status_text()))
                         } else {
                             resp.text().await.map_err(|err| err.to_string())
                         }

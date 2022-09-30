@@ -23,7 +23,7 @@ fn app(pool: Pool<Postgres>) -> Router {
     code
 }
 
-fn get_main_fn_code() -> String{
+fn get_main_fn_code() -> String {
     return r#"
 use sqlx::postgres::PgPoolOptions;
 
@@ -41,7 +41,8 @@ async fn main() {
         .unwrap();
 }
 
-    "#.to_string()
+    "#
+    .to_string();
 }
 
 fn create_or_get_src_dir(user_id: &str) -> PathBuf {
@@ -87,7 +88,6 @@ fn write_main_file(user_id: &str, models: &InternalModels) {
     let app_fn = create_app_fn(models);
     main_code.push_str(&app_fn);
     main_rs.write_all(main_code.as_bytes()).unwrap();
-
 }
 
 pub fn write_all(user_id: &str, models: &InternalModels) {
@@ -104,9 +104,7 @@ mod tests {
 
     #[test]
     fn test_write_all() {
-        let models = vec![InternalModel {
-            name: "Order".to_string(),
-        }];
+        let models = vec![InternalModel { name: "Order".to_string() }];
         write_all("user_id", &models);
     }
 

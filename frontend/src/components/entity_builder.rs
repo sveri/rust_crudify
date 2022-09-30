@@ -50,7 +50,7 @@ pub fn entity_builder() -> Html {
     //     let val: HtmlInputElement  = event.target_unchecked_into();
     //     content.content += val.v
     // });
-    
+
     html! {
 
         <div>

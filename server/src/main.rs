@@ -1,18 +1,16 @@
-
 use axum::body::Body;
 use axum::http::Request;
 use axum::{routing::get, routing::post, Extension, Router};
 
-use axum::extract::{Json};
+use axum::extract::Json;
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
 use sqlx::postgres::{PgPool, PgPoolOptions};
-use sqlx::{FromRow, Row, Pool, Postgres};
+use sqlx::{FromRow, Pool, Postgres, Row};
 
 use uuid::Uuid;
-
 
 #[derive(FromRow, Clone, Debug, Serialize, Deserialize, PartialEq)]
 struct Entity {
@@ -21,8 +19,10 @@ struct Entity {
 }
 
 async fn create_entity(Extension(pool): Extension<PgPool>, body: Request<Body>) -> Json<Value> {
-    
-    let entity = Entity {id: Uuid::new_v4(), body: json!("asdflkj")};
+    let entity = Entity {
+        id: Uuid::new_v4(),
+        body: json!("asdflkj"),
+    };
     Json(json!(entity))
 }
 
@@ -31,10 +31,7 @@ async fn create_table(table_name: &str, Extension(pool): Extension<PgPool>) {
 }
 
 async fn get_entities(Extension(pool): Extension<PgPool>) -> Json<Value> {
-    let res = sqlx::query("SELECT id, body FROM entity")
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+    let res = sqlx::query("SELECT id, body FROM entity").fetch_all(&pool).await.unwrap();
     let entities = res
         .into_iter()
         .map(|row| Entity {
@@ -61,11 +58,11 @@ async fn main() {
 
 fn app(pool: Pool<Postgres>) -> Router {
     Router::new()
-    .route("/api/entity", get(get_entities))
-    .route("/api/entity", post(create_entity))
-    .merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
-    .layer(Extension(pool))
+        .route("/api/entity", get(get_entities))
+        .route("/api/entity", post(create_entity))
+        .merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
+        .layer(Extension(pool))
 }
 
-
-#[cfg(test)] mod tests;
+#[cfg(test)]
+mod tests;
