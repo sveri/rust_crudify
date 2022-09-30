@@ -1,0 +1,5 @@
+[workspace]
+
+members = ["crudify_generator", "server", "frontend"]
+
+exclude = ["user_id"]

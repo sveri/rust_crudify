@@ -2,7 +2,7 @@ use std::{fs, io::Write, path::PathBuf};
 
 use super::InternalModels;
 
-fn create_app_fn(models: InternalModels) -> String {
+fn create_app_fn(models: &InternalModels) -> String {
     let mut code = r#"
 fn app(pool: Pool<Postgres>) -> Router {
     Router::new()
@@ -23,8 +23,10 @@ fn app(pool: Pool<Postgres>) -> Router {
     code
 }
 
-fn create_main_fn() {
-    let code = r#"
+fn get_main_fn_code() -> String{
+    return r#"
+use sqlx::postgres::PgPoolOptions;
+
 #[tokio::main]
 async fn main() {
     let pool = PgPoolOptions::new()
@@ -39,7 +41,7 @@ async fn main() {
         .unwrap();
 }
 
-    "#;
+    "#.to_string()
 }
 
 fn create_or_get_src_dir(user_id: &str) -> PathBuf {
@@ -62,24 +64,35 @@ fn write_code(code: &str, user_id: &str, file_name: &str) {
     main_rs.write_all(code.as_bytes()).unwrap();
 }
 
-fn write_model(user_id: &str, models: InternalModels) {
+fn write_model(user_id: &str, models: &InternalModels) {
     let app_fn = create_app_fn(models);
 
     write_code(&app_fn, user_id, "main.rs");
 }
 
-fn get_cargo_toml(user_id: &str) -> String {
+fn write_cargo_toml(user_id: &str) {
     let cargo_toml = include_str!("../templates/Cargo.toml");
-    cargo_toml.replace("name = \"\"", format!("name = \"{}\"", user_id).as_str())
-}
-
-pub fn write_all(user_id: &str, models: InternalModels) {
-    let cargo_toml = get_cargo_toml(user_id);
+    let cargo_toml = cargo_toml.replace("name = \"\"", format!("name = \"{}\"", user_id).as_str());
     let data_path = create_or_get_project_dir(user_id).join("Cargo.toml");
     let mut main_rs = fs::File::create(data_path).unwrap();
     main_rs.write_all(cargo_toml.as_bytes()).unwrap();
+}
 
-    write_model(user_id, models);
+fn write_main_file(user_id: &str, models: &InternalModels) {
+    let mut main_code = get_main_fn_code();
+
+    let data_path = create_or_get_src_dir(user_id).join("main.rs");
+    let mut main_rs = fs::File::create(data_path).unwrap();
+
+    let app_fn = create_app_fn(models);
+    main_code.push_str(&app_fn);
+    main_rs.write_all(main_code.as_bytes()).unwrap();
+
+}
+
+pub fn write_all(user_id: &str, models: &InternalModels) {
+    write_cargo_toml(user_id);
+    write_main_file(user_id, models);
 }
 
 #[cfg(test)]
@@ -94,7 +107,7 @@ mod tests {
         let models = vec![InternalModel {
             name: "Order".to_string(),
         }];
-        write_all("user_id", models);
+        write_all("user_id", &models);
     }
 
     // #[test]

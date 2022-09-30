@@ -6,7 +6,7 @@ pub struct InternalModel {
 
 pub type InternalModels = Vec<InternalModel>;
 
-pub fn generate(user_id: &str, models: InternalModels) {
+pub fn generate(user_id: &str, models: &InternalModels) {
     file_creator::write_all(user_id, models);
     
 }
@@ -20,6 +20,6 @@ mod tests {
         let models = vec![InternalModel {
             name: "Order".to_string(),
         }];
-        generate("user_id", models);
+        generate("user_id", &models);
     }
 }
