@@ -29,7 +29,14 @@ fn parse_properties(value: &Value) -> IndexMap<String, String> {
 
         for(property_key, property_value) in properties.as_object().unwrap() {
             if property_key == "id" && property_value.is_object() {
-                property_map.insert(property_key.to_string(), property_key.to_string());
+                
+                let property_type = property_value.as_object().unwrap();
+                let mut data_type = "String";
+                if property_type.contains_key("format") && property_type.get("format").unwrap() == "int64" {
+                    data_type = "i64";
+                }
+
+                property_map.insert(property_key.to_string(), data_type.to_string());
             } else {
                 warn!("The id value must be an object, but was {:?}", property_value);
             }
@@ -52,20 +59,19 @@ mod tests {
     }
 
     #[test]
+    fn with_id_property() {
+        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}}}});
+        let models = convert_to_internal_model(&order_with_id);
+        assert_eq!("Order", models.get(0).unwrap().name);
+        assert_eq!("i64".to_string(), models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string());
+    }
+
+    #[test]
     fn with_wrong_id_property() {
         init();
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": "foobar"}}});
         let models = convert_to_internal_model(&order_with_id);
         assert_eq!("Order", models.get(0).unwrap().name);
-        // assert_eq!("i64".to_string(), models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string());
-    }
-
-    #[test]
-    fn with_id_property() {
-        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}}}});
-        let models = convert_to_internal_model(&order_with_id);
-        assert_eq!("Order", models.get(0).unwrap().name);
-        // assert_eq!("i64".to_string(), models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string());
     }
 
     #[test]
