@@ -7,7 +7,10 @@ edition = "2021"
 axum = { version = "0.5.16" }
 axum-extra = { version = "^0.3", features = ["spa"] }
 tokio = { version = "1", features = ["full"] }
+
 uuid = { version = "1", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+
 serde = { version = "1.0.144", features = ["derive"] }
 serde_json = {version = "1.0.85"}
 

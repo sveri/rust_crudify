@@ -2,9 +2,31 @@
 
 use indexmap::IndexMap;
 use log::{warn, info, error};
+use phf::phf_map;
 use serde_json::{Value};
 
 use crate::{InternalModels, InternalModel};
+
+// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
+static DATATYPE_FORMAT_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
+    "int64" => "i64",
+    "int32" => "i32",
+    "date" => "chrono::Date",
+    "date-time" => "chrono::DateTime",
+    "password" => "String",
+    "byte" => "u8",
+    "boolean" => "bool",
+    "float" => "f32",
+    "double" => "f64"
+};
+
+// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
+static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
+    "integer" => "i64",
+    "string" => "String",
+    "boolean" => "bool",
+    "number" => "f64"
+};
 
 
 pub fn convert_to_internal_model(j: &Value) -> InternalModels {
@@ -32,8 +54,8 @@ fn parse_properties(value: &Value) -> IndexMap<String, String> {
                 
                 let property_type = property_value.as_object().unwrap();
                 let mut data_type = "String";
-                if property_type.contains_key("format") && property_type.get("format").unwrap() == "int64" {
-                    data_type = "i64";
+                if property_type.contains_key("format") {
+                    data_type = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(property_type.get("format").unwrap().as_str().unwrap()).unwrap();
                 }
 
                 property_map.insert(property_key.to_string(), data_type.to_string());
