@@ -5,6 +5,7 @@ mod file_creator;
 mod main_file_creator;
 mod json_converter;
 
+
 pub struct InternalModel {
     pub name: String,
     pub properties: Option<IndexMap<String, String>>
