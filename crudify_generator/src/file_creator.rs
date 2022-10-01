@@ -33,7 +33,8 @@ mod tests {
 
     #[test]
     fn test_write_all() {
-        let models = vec![InternalModel { name: "Order".to_string() }];
+        // let models = vec![InternalModel { name: "Order".to_string() }];
+        let models = vec![InternalModel::new("Order".to_string())];
         write_all("user_id", &models);
     }
 
