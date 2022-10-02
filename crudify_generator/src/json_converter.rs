@@ -6,23 +6,6 @@ use serde_json::{Map, Value};
 
 use crate::{InternalModel, InternalModels, errors::JsonConverterError};
 
-
-// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
-static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
-    "integer" => "i64",
-    "string" => "String",
-    "boolean" => "bool",
-    "number" => "f64",
-    "int64" => "i64",
-    "int32" => "i32",
-    "date" => "chrono::Date",
-    "date-time" => "chrono::DateTime",
-    "password" => "String",
-    "byte" => "u8",
-    "float" => "f32",
-    "double" => "f64"
-};
-
 #[derive(Deserialize, Debug)]
 struct OA3Type {
     #[serde(rename = "type")]
@@ -94,6 +77,9 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
 
     Ok(property_map)
 }
+
+
+
 
 #[cfg(test)]
 mod tests {
@@ -173,3 +159,23 @@ mod tests {
         let _ = env_logger::builder().is_test(true).filter_level(log::LevelFilter::Debug).try_init();
     }
 }
+
+
+
+
+
+// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
+static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
+    "integer" => "i64",
+    "string" => "String",
+    "boolean" => "bool",
+    "number" => "f64",
+    "int64" => "i64",
+    "int32" => "i32",
+    "date" => "chrono::Date",
+    "date-time" => "chrono::DateTime",
+    "password" => "String",
+    "byte" => "u8",
+    "float" => "f32",
+    "double" => "f64"
+};
