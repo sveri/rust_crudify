@@ -1,62 +1,26 @@
-// json -> rust code -> file system
-
-use std::{error::Error, fmt::Display};
-
 use indexmap::IndexMap;
 use log::warn;
 use phf::phf_map;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{InternalModel, InternalModels};
+use crate::{InternalModel, InternalModels, errors::JsonConverterError};
 
-// from https://www.reddit.com/r/rust/comments/gj8inf/comment/fqlmknt/
-#[derive(Debug)]
-pub enum JsonConverterError<'a> {
-    // AsObjectError,
-    AsObjectError { value: &'a Value },
-}
-
-impl Error for JsonConverterError<'_> {
-    // fn source(&self) -> Option<&(dyn Error + 'static)> {
-
-    // }
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        match *self {
-            JsonConverterError::AsObjectError { ref value } => None,
-        }
-    }
-}
-
-impl Display for JsonConverterError<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match *self {
-            Self::AsObjectError { ref value } => {
-                write!(f, "Could not convert value to object: {}", value)
-            }
-        }
-    }
-}
-
-// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
-static DATATYPE_FORMAT_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
-    "int64" => "i64",
-    "int32" => "i32",
-    "date" => "chrono::Date",
-    "date-time" => "chrono::DateTime",
-    "password" => "String",
-    "byte" => "u8",
-    "boolean" => "bool",
-    "float" => "f32",
-    "double" => "f64"
-};
 
 // https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
 static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
     "integer" => "i64",
     "string" => "String",
     "boolean" => "bool",
-    "number" => "f64"
+    "number" => "f64",
+    "int64" => "i64",
+    "int32" => "i32",
+    "date" => "chrono::Date",
+    "date-time" => "chrono::DateTime",
+    "password" => "String",
+    "byte" => "u8",
+    "float" => "f32",
+    "double" => "f64"
 };
 
 #[derive(Deserialize, Debug)]
@@ -64,6 +28,15 @@ struct OA3Type {
     #[serde(rename = "type")]
     kind: String,
     format: Option<String>,
+}
+
+impl OA3Type {
+    fn get_format_or_type(&self) -> String {
+        match &self.format {
+            Some(format) => format.to_string(),
+            None => self.kind.to_string()
+        }
+    }
 }
 
 pub fn convert_to_internal_model(j: &Value) -> Result<InternalModels, JsonConverterError> {
@@ -94,14 +67,13 @@ fn parse_data_type_from_value(property_value: &Value) -> String {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
         Err(_) => "String".to_string(),
-        Ok(property_object) => {
-            if let Some(format) = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(property_object.format.unwrap().as_str()) {
-                return format.to_string();
+        Ok(property_object) => { 
+            let oa3_type = property_object.get_format_or_type();
+            if let Some(data_type) = DATATYPE_TO_RUST_DATATYPE.get(&oa3_type){
+                return data_type.to_string();
+            } else {
+                return "String".to_string();
             }
-            if let Some(type_value) = DATATYPE_TO_RUST_DATATYPE.get(&property_object.kind) {
-                return type_value.to_string();
-            }
-            return "String".to_string();
         }
     }
 }

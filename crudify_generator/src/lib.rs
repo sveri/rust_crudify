@@ -4,6 +4,7 @@ use serde_json::{Value};
 mod file_creator;
 mod main_file_creator;
 mod json_converter;
+mod errors;
 
 #[derive(Debug)]
 pub struct InternalModel {
