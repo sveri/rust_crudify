@@ -38,15 +38,24 @@ pub fn convert_to_internal_model(j: &Value) -> Result<InternalModels, JsonConver
     Ok(internal_models)
 }
 
-fn as_object(value: &Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(JsonConverterError::AsObjectError { value: value })
+fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConverterError> {
+    let mut property_map: IndexMap<String, String> = IndexMap::new();
+    let o = as_object(value)?;
+    if let Some(properties) = o.get("properties") {
+        for (property_key, property_value) in as_object_with_context(properties, value)? {
+            if property_key == "id" && property_value.is_object() {
+                let data_type = parse_data_type(property_value);
+                property_map.insert(property_key.to_string(), data_type.to_string());
+            } else {
+                return Err(JsonConverterError::AsObjectError { value: property_value });
+            }
+        }
+    }
+
+    Ok(property_map)
 }
 
-fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
-}
-
-fn parse_data_type_from_value(property_value: &Value) -> String {
+fn parse_data_type(property_value: &Value) -> String {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
         Err(_) => "String".to_string(),
@@ -61,24 +70,13 @@ fn parse_data_type_from_value(property_value: &Value) -> String {
     }
 }
 
-fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConverterError> {
-    let mut property_map: IndexMap<String, String> = IndexMap::new();
-    let o = as_object(value)?;
-    if let Some(properties) = o.get("properties") {
-        for (property_key, property_value) in as_object_with_context(properties, value)? {
-            if property_key == "id" && property_value.is_object() {
-                let data_type = parse_data_type_from_value(property_value);
-                property_map.insert(property_key.to_string(), data_type.to_string());
-            } else {
-                return Err(JsonConverterError::AsObjectError { value: property_value });
-            }
-        }
-    }
-
-    Ok(property_map)
+fn as_object(value: &Value) -> Result<&Map<String, Value>, JsonConverterError> {
+    value.as_object().ok_or(JsonConverterError::AsObjectError { value: value })
 }
 
-
+fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<&Map<String, Value>, JsonConverterError> {
+    value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
+}
 
 
 #[cfg(test)]
