@@ -147,6 +147,17 @@ mod tests {
     }
 
     #[test]
+    fn with_with_extra_properties() {
+        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64", "example": "3"}}}});
+        let models = convert_to_internal_model(&order_with_id).unwrap();
+        assert_eq!("Order", models.get(0).unwrap().name);
+        assert_eq!(
+            "i64".to_string(),
+            models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string()
+        );
+    }
+
+    #[test]
     fn with_id_property_and_type() {
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer"}}}});
         let models = convert_to_internal_model(&order_with_id).unwrap();
