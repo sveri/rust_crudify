@@ -82,6 +82,24 @@ fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<
     value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
 }
 
+fn parse_data_type_from_object(property_type: &Map<String, Value>, value: &Value) -> String {
+    let mut data_type = "String";
+    if let Some(format) = property_type.get("format") {
+        if DATATYPE_FORMAT_TO_RUST_DATATYPE.contains_key(format.as_str().unwrap()) {
+            data_type = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(format.as_str().unwrap()).unwrap();
+        } else if let Some(type_value) = property_type.get("type") {
+            data_type = DATATYPE_TO_RUST_DATATYPE.get(type_value.as_str().unwrap()).unwrap();
+        } else {
+            warn!(
+                "No type or format found in data type property, assuming string as default. Value: {:?}",
+                value
+            );
+        }
+    }
+
+    data_type.to_string()
+}
+
 fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConverterError> {
     let mut property_map: IndexMap<String, String> = IndexMap::new();
     let o = as_object(value)?;
@@ -89,16 +107,7 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
         for (property_key, property_value) in as_object_with_context(properties, value)? {
             if property_key == "id" && property_value.is_object() {
                 let property_type = as_object_with_context(property_value, value)?;
-                let mut data_type = "String";
-                if let Some(format) = property_type.get("format") {
-                    if DATATYPE_FORMAT_TO_RUST_DATATYPE.contains_key(format.as_str().unwrap()) {
-                        data_type = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(format.as_str().unwrap()).unwrap();
-                    } else if let Some(type_value) = property_type.get("type") {
-                        data_type = DATATYPE_TO_RUST_DATATYPE.get(type_value.as_str().unwrap()).unwrap();
-                    } else {
-                        warn!("No type or format found in data type property, assuming string as default. Value: {:?}", value);
-                    }
-                }
+                let data_type = parse_data_type_from_object(property_type, value);
 
                 property_map.insert(property_key.to_string(), data_type.to_string());
             } else {
@@ -134,7 +143,10 @@ mod tests {
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}}}});
         let models = convert_to_internal_model(&order_with_id).unwrap();
         assert_eq!("Order", models.get(0).unwrap().name);
-        assert_eq!("i64".to_string(), models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string());
+        assert_eq!(
+            "i64".to_string(),
+            models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string()
+        );
     }
 
     #[test]
@@ -142,7 +154,10 @@ mod tests {
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {}}}});
         let models = convert_to_internal_model(&order_with_id).unwrap();
         assert_eq!("Order", models.get(0).unwrap().name);
-        assert_eq!("String".to_string(), models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string());
+        assert_eq!(
+            "String".to_string(),
+            models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string()
+        );
     }
 
     #[test]
