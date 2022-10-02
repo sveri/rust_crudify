@@ -45,7 +45,7 @@ fn app(pool: Pool<Postgres>) -> Router {
     Router::new()
 "#
     .to_string();
-    for model in models.into_iter() {
+    for model in models.iter() {
         let name = model.name.to_lowercase();
         code.push_str(format!(".route(\"/api/{0}\", post(post_{0}))\n", name).as_str());
         code.push_str(format!(".route(\"/api/{0}\", put(put_{0}))\n", name).as_str());

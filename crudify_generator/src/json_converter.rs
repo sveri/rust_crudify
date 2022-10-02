@@ -25,7 +25,7 @@ pub fn convert_to_internal_model(j: &Value) -> Result<InternalModels, JsonConver
     let mut internal_models = Vec::new();
     for (key, value) in j.as_object().unwrap() {
         if value.is_object() {
-            let properties = parse_properties(&value)?;
+            let properties = parse_properties(value)?;
 
             internal_models.push(InternalModel {
                 name: key.to_string(),
@@ -61,22 +61,38 @@ fn parse_data_type(property_value: &Value) -> String {
         Ok(property_object) => { 
             let oa3_type = property_object.get_format_or_type();
             if let Some(data_type) = DATATYPE_TO_RUST_DATATYPE.get(&oa3_type){
-                return data_type.to_string();
+                data_type.to_string()
             } else {
-                return "String".to_string();
+                "String".to_string()
             }
         }
     }
 }
 
 fn as_object(value: &Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(JsonConverterError::AsObjectError { value: value })
+    value.as_object().ok_or(JsonConverterError::AsObjectError { value })
 }
 
 fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<&Map<String, Value>, JsonConverterError> {
     value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
 }
 
+
+// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
+static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
+    "integer" => "i64",
+    "string" => "String",
+    "boolean" => "bool",
+    "number" => "f64",
+    "int64" => "i64",
+    "int32" => "i32",
+    "date" => "chrono::Date",
+    "date-time" => "chrono::DateTime",
+    "password" => "String",
+    "byte" => "u8",
+    "float" => "f32",
+    "double" => "f64"
+};
 
 #[cfg(test)]
 mod tests {
@@ -154,21 +170,3 @@ mod tests {
 }
 
 
-
-
-
-// https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
-static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
-    "integer" => "i64",
-    "string" => "String",
-    "boolean" => "bool",
-    "number" => "f64",
-    "int64" => "i64",
-    "int32" => "i32",
-    "date" => "chrono::Date",
-    "date-time" => "chrono::DateTime",
-    "password" => "String",
-    "byte" => "u8",
-    "float" => "f32",
-    "double" => "f64"
-};

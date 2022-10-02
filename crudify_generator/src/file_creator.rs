@@ -29,7 +29,7 @@ mod tests {
 
     impl InternalModel {
         fn new(name: String) -> InternalModel {
-            InternalModel { name: name, properties: None }
+            InternalModel { name, properties: None }
         }
     }
 

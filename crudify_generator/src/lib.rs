@@ -15,7 +15,7 @@ pub struct InternalModel {
 pub type InternalModels = Vec<InternalModel>;
 
 pub fn generate(user_id: &str, input_objects: &Value) {
-    let models = json_converter::convert_to_internal_model(&input_objects).unwrap();
+    let models = json_converter::convert_to_internal_model(input_objects).unwrap();
     file_creator::write_all(user_id, &models);
 }
 
