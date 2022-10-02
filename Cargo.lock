@@ -249,6 +249,7 @@ dependencies = [
  "indexmap",
  "log",
  "phf",
+ "serde",
  "serde_json",
 ]
 

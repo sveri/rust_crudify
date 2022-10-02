@@ -5,6 +5,7 @@ use std::{error::Error, fmt::Display};
 use indexmap::IndexMap;
 use log::{error, info, warn};
 use phf::phf_map;
+use serde::Deserialize;
 use serde_json::{Map, Value};
 
 use crate::{InternalModel, InternalModels};
@@ -58,6 +59,13 @@ static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map
     "number" => "f64"
 };
 
+#[derive(Deserialize, Debug)]
+struct OA3Type {
+    #[serde(rename = "type")]
+    kind: String,
+    format: Option<String>,
+}
+
 pub fn convert_to_internal_model(j: &Value) -> Result<InternalModels, JsonConverterError> {
     let mut internal_models = Vec::new();
     for (key, value) in j.as_object().unwrap() {
@@ -100,14 +108,39 @@ fn parse_data_type_from_object(property_type: &Map<String, Value>, value: &Value
     data_type.to_string()
 }
 
+fn parse_data_type_from_value(property_value: OA3Type, value_context: &Value) -> String {
+    let mut data_type = "String";
+    if let Some(format) = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(property_value.format.unwrap().as_str()) {
+        data_type = format;
+    } else if let Some(type_value) = DATATYPE_TO_RUST_DATATYPE.get(&property_value.kind) {
+        data_type = type_value;
+    }
+    // if let Some(format) = property_type.get("format") {
+    //     if DATATYPE_FORMAT_TO_RUST_DATATYPE.contains_key(format.as_str().unwrap()) {
+    //         data_type = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(format.as_str().unwrap()).unwrap();
+    //     } else if let Some(type_value) = property_type.get("type") {
+    //         data_type = DATATYPE_TO_RUST_DATATYPE.get(type_value.as_str().unwrap()).unwrap();
+    //     } else {
+    //         warn!(
+    //             "No type or format found in data type property, assuming string as default. Value: {:?}",
+    //             value_context
+    //         );
+    //     }
+    // }
+
+    data_type.to_string()
+}
+
 fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConverterError> {
     let mut property_map: IndexMap<String, String> = IndexMap::new();
     let o = as_object(value)?;
     if let Some(properties) = o.get("properties") {
         for (property_key, property_value) in as_object_with_context(properties, value)? {
             if property_key == "id" && property_value.is_object() {
-                let property_type = as_object_with_context(property_value, value)?;
-                let data_type = parse_data_type_from_object(property_type, value);
+                let property_object: OA3Type = serde_json::from_value(property_value.to_owned()).unwrap();
+                property_object.
+                // let property_type = as_object_with_context(property_value, value)?;
+                // let data_type = parse_data_type_from_object(property_type, value);
 
                 property_map.insert(property_key.to_string(), data_type.to_string());
             } else {
