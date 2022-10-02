@@ -1,0 +1,2 @@
+[profile.default]
+success-output = "never"
