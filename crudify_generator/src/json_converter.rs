@@ -90,24 +90,6 @@ fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<
     value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
 }
 
-fn parse_data_type_from_object(property_type: &Map<String, Value>, value: &Value) -> String {
-    let mut data_type = "String";
-    if let Some(format) = property_type.get("format") {
-        if DATATYPE_FORMAT_TO_RUST_DATATYPE.contains_key(format.as_str().unwrap()) {
-            data_type = DATATYPE_FORMAT_TO_RUST_DATATYPE.get(format.as_str().unwrap()).unwrap();
-        } else if let Some(type_value) = property_type.get("type") {
-            data_type = DATATYPE_TO_RUST_DATATYPE.get(type_value.as_str().unwrap()).unwrap();
-        } else {
-            warn!(
-                "No type or format found in data type property, assuming string as default. Value: {:?}",
-                value
-            );
-        }
-    }
-
-    data_type.to_string()
-}
-
 fn parse_data_type_from_value(property_value: &Value) -> String {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
