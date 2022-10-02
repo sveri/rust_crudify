@@ -133,7 +133,7 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
                 let data_type = parse_data_type_from_value(property_value);
                 property_map.insert(property_key.to_string(), data_type.to_string());
             } else {
-                warn!("The id value must be an object, but was {:?}", property_value);
+                return Err(JsonConverterError::AsObjectError { value: property_value });
             }
         }
     }
@@ -147,6 +147,20 @@ mod tests {
     use serde_json::json;
 
     #[test]
+    fn with_wrong_id_property_must_err() {
+        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": "foobar"}}});
+        let models = convert_to_internal_model(&order_with_id);        
+        assert!(models.is_err());
+        assert_eq!(
+            JsonConverterError::AsObjectError {
+                value: &json!("foobar")
+            }
+            .to_string(),
+            models.unwrap_err().to_string()
+        );
+    }
+
+    #[test]
     fn non_object_value_must_err() {
         let order_with_id = json!({"Order": {"type": "object", "properties": []}});
         let models = convert_to_internal_model(&order_with_id);
@@ -158,26 +172,6 @@ mod tests {
             .to_string(),
             models.unwrap_err().to_string()
         );
-    }
-
-    #[test]
-    fn with_wrong_id_property() {
-        init();
-        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": "foobar"}}});
-        let models = convert_to_internal_model(&order_with_id);        
-        assert!(models.is_err());
-        assert_eq!(
-            JsonConverterError::AsObjectError {
-                value: &json!({"type": "object", "properties": []})
-            }
-            .to_string(),
-            models.unwrap_err().to_string()
-        );
-        // assert_eq!("Order", models.get(0).unwrap().name);
-        // assert_eq!(
-        //     "String".to_string(),
-        //     models.get(0).unwrap().properties.as_ref().unwrap().get("id").unwrap().to_string()
-        // );
     }
 
     #[test]
