@@ -27,6 +27,12 @@ pub fn write_all(user_id: &str, models: &InternalModels) {
 #[cfg(test)]
 mod tests {
 
+    impl InternalModel {
+        fn new(name: String) -> InternalModel {
+            InternalModel { name: name, properties: None }
+        }
+    }
+
     use super::*;
 
     use super::super::InternalModel;

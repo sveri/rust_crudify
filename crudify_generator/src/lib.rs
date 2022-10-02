@@ -12,12 +12,6 @@ pub struct InternalModel {
     pub properties: Option<IndexMap<String, String>>
 }
 
-impl InternalModel {
-    fn new(name: String) -> InternalModel {
-        InternalModel { name: name, properties: None }
-    }
-}
-
 pub type InternalModels = Vec<InternalModel>;
 
 pub fn generate(user_id: &str, input_objects: &Value) {

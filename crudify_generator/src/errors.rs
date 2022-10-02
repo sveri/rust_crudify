@@ -11,7 +11,7 @@ pub enum JsonConverterError<'a> {
 impl Error for JsonConverterError<'_> {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match *self {
-            JsonConverterError::AsObjectError { ref value } => None,
+            JsonConverterError::AsObjectError { value: _ } => None,
         }
     }
 }

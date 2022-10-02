@@ -1,5 +1,4 @@
 use indexmap::IndexMap;
-use log::warn;
 use phf::phf_map;
 use serde::Deserialize;
 use serde_json::{Map, Value};
@@ -151,10 +150,6 @@ mod tests {
         let models = convert_to_internal_model(&two_order_objects).unwrap();
         assert_eq!("Order", models.get(0).unwrap().name);
         assert_eq!("OrderTwo", models.get(1).unwrap().name);
-    }
-
-    fn init() {
-        let _ = env_logger::builder().is_test(true).filter_level(log::LevelFilter::Debug).try_init();
     }
 }
 
