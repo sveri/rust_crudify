@@ -3,9 +3,9 @@ use thiserror::Error;
 
 // from https://www.reddit.com/r/rust/comments/gj8inf/comment/fqlmknt/
 #[derive(Error, Debug)]
-pub enum JsonConverterError<> {
+pub enum JsonConverterError<'a> {
     #[error("Could not convert value to object: {0}")]
-    AsObjectError(Value),
+    AsObjectError(&'a Value),
 }
 
 // impl Error for JsonConverterError<'_> {

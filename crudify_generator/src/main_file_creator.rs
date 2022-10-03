@@ -1,6 +1,6 @@
 use std::{
     fs::{self, File},
-    io::Write,
+    io::{self, Write},
     path::PathBuf,
 };
 
@@ -61,18 +61,20 @@ fn app(pool: Pool<Postgres>) -> Router {
     code
 }
 
-fn create_or_get_src_dir(user_id: &str) -> PathBuf {
-    let current_dir = std::env::current_dir().unwrap();
+fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
+    let current_dir = std::env::current_dir()?;
     let data_path = current_dir.join("../").join(user_id).join("src");
-    fs::create_dir_all(&data_path).unwrap();
-    data_path
+    fs::create_dir_all(&data_path)?;
+    Ok(data_path)
 }
 
-pub fn write_main_file(user_id: &str, models: &InternalModels) {
+pub fn write_main_file(user_id: &str, models: &InternalModels) -> Result<(), io::Error> {
     let code = format!("{} {} {}", get_usages(), get_main_fn_code(), create_app_fn(models));
 
-    let data_path = create_or_get_src_dir(user_id).join("main.rs");
-    let mut main_rs = File::create(data_path).unwrap();
+    let data_path = create_or_get_src_dir(user_id)?.join("main.rs");
+    let mut main_rs = File::create(data_path)?;
 
-    main_rs.write_all(code.as_bytes()).unwrap();
+    main_rs.write_all(code.as_bytes())?;
+    Ok(())
+
 }

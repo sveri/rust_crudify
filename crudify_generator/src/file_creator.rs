@@ -22,7 +22,7 @@ fn write_cargo_toml(user_id: &str) -> Result<(), std::io::Error> {
 
 pub fn write_all(user_id: &str, models: &InternalModels) -> Result<(), std::io::Error> {
     write_cargo_toml(user_id)?;
-    write_main_file(user_id, models);
+    write_main_file(user_id, models)?;
     Ok(())
 }
 

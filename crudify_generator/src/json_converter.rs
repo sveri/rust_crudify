@@ -57,7 +57,7 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
 fn parse_data_type(property_value: &Value) -> Result<String, JsonConverterError> {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
-        Err(_) => AsObjectError(property_value),
+        Err(_) => Err(AsObjectError(property_value)),
         Ok(property_object) => {
             let oa3_type = property_object.get_format_or_type();
             if let Some(data_type) = DATATYPE_TO_RUST_DATATYPE.get(&oa3_type) {
@@ -70,11 +70,11 @@ fn parse_data_type(property_value: &Value) -> Result<String, JsonConverterError>
 }
 
 fn as_object(value: &Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(AsObjectError(value ))
+    value.as_object().ok_or(AsObjectError(value))
 }
 
 fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(AsObjectError(ctx_value ))
+    value.as_object().ok_or(AsObjectError(ctx_value))
 }
 
 // https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
@@ -100,8 +100,7 @@ mod tests {
 
     #[test]
     fn with_name_property_in_a_second_object() {
-        let order_with_id =
-            json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}, "name": {"type": "string"}}},
+        let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}, "name": {"type": "string"}}},
             "OrderTwo": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}, "isFoo": {"type": "boolean"}}}});
         let models = convert_to_internal_model(&order_with_id).unwrap();
         assert_eq!("Order", models.get(0).unwrap().name);
@@ -120,7 +119,15 @@ mod tests {
         );
         assert_eq!(
             "bool".to_string(),
-            models.get(1).unwrap().properties.as_ref().unwrap().get("isFoo").unwrap().to_string()
+            models
+                .get(1)
+                .unwrap()
+                .properties
+                .as_ref()
+                .unwrap()
+                .get("isFoo")
+                .unwrap()
+                .to_string()
         );
     }
     #[test]
@@ -144,10 +151,7 @@ mod tests {
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": "foobar"}}});
         let models = convert_to_internal_model(&order_with_id);
         assert!(models.is_err());
-        assert_eq!(
-            AsObjectError(value: &json!("foobar") }.to_string(),
-            models.unwrap_err().to_string()
-        );
+        assert_eq!(AsObjectError(&json!("foobar")).to_string(), models.unwrap_err().to_string());
     }
 
     #[test]
@@ -156,10 +160,7 @@ mod tests {
         let models = convert_to_internal_model(&order_with_id);
         assert!(models.is_err());
         assert_eq!(
-            JsonConverterError::AsObjectError {
-                value: &json!({"type": "object", "properties": []})
-            }
-            .to_string(),
+            AsObjectError(&json!({"type": "object", "properties": []})).to_string(),
             models.unwrap_err().to_string()
         );
     }
@@ -168,10 +169,7 @@ mod tests {
         let order_with_id = json!({"Order": {"type": "object", "properties": {"id": {}}}});
         let models = convert_to_internal_model(&order_with_id);
         assert!(models.is_err());
-        assert_eq!(
-            AsObjectError(value: &json!({}) }.to_string(),
-            models.unwrap_err().to_string()
-        );
+        assert_eq!(AsObjectError(&json!({})).to_string(), models.unwrap_err().to_string());
     }
 
     #[test]
