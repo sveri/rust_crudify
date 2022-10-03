@@ -4,45 +4,47 @@ use super::InternalModels;
 
 use super::main_file_creator::write_main_file;
 
-fn create_or_get_project_dir(user_id: &str) -> PathBuf {
-    let current_dir = std::env::current_dir().unwrap();
+fn create_or_get_project_dir(user_id: &str) -> Result<PathBuf, std::io::Error> {
+    let current_dir = std::env::current_dir()?;
     let data_path = current_dir.join("../").join(user_id);
-    fs::create_dir_all(&data_path).unwrap();
-    data_path
+    fs::create_dir_all(&data_path)?;
+    Ok(data_path)
 }
 
-fn write_cargo_toml(user_id: &str) {
+fn write_cargo_toml(user_id: &str) -> Result<(), std::io::Error> {
     let cargo_toml = include_str!("../templates/Cargo.toml");
     let cargo_toml = cargo_toml.replace("name = \"\"", format!("name = \"{}\"", user_id).as_str());
-    let data_path = create_or_get_project_dir(user_id).join("Cargo.toml");
-    let mut main_rs = fs::File::create(data_path).unwrap();
-    main_rs.write_all(cargo_toml.as_bytes()).unwrap();
+    let data_path = create_or_get_project_dir(user_id)?.join("Cargo.toml");
+    let mut main_rs = fs::File::create(data_path)?;
+    main_rs.write_all(cargo_toml.as_bytes())?;
+    Ok(())
 }
 
-pub fn write_all(user_id: &str, models: &InternalModels) {
-    write_cargo_toml(user_id);
+pub fn write_all(user_id: &str, models: &InternalModels) -> Result<(), std::io::Error> {
+    write_cargo_toml(user_id)?;
     write_main_file(user_id, models);
+    Ok(())
 }
 
 #[cfg(test)]
 mod tests {
 
-    impl InternalModel {
-        fn new(name: String) -> InternalModel {
-            InternalModel { name, properties: None }
-        }
-    }
+    // impl InternalModel {
+    //     fn new(name: String) -> InternalModel {
+    //         InternalModel { name, properties: None }
+    //     }
+    // }
 
-    use super::*;
+    // use super::*;
 
-    use super::super::InternalModel;
+    // use super::super::InternalModel;
 
-    #[test]
-    fn test_write_all() {
-        // let models = vec![InternalModel { name: "Order".to_string() }];
-        let models = vec![InternalModel::new("Order".to_string())];
-        write_all("user_id", &models);
-    }
+    // #[test]
+    // fn test_write_all() {
+    //     // let models = vec![InternalModel { name: "Order".to_string() }];
+    //     let models = vec![InternalModel::new("Order".to_string())];
+    //     write_all("user_id", &models);
+    // }
 
     // #[test]
     // fn test_write_model() {

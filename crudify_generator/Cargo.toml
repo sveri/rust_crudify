@@ -14,6 +14,8 @@ indexmap = "1.9.1"
 
 log = "0.4.17"
 
+thiserror = "1.0.37"
+
 # for static datastructures
 phf = { version = "0.11.1", features = ["macros"] }
 

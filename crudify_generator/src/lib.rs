@@ -1,3 +1,6 @@
+#![warn(clippy::unwrap_used)]
+
+use errors::JsonConverterError;
 use indexmap::IndexMap;
 use serde_json::{Value};
 
@@ -14,9 +17,10 @@ pub struct InternalModel {
 
 pub type InternalModels = Vec<InternalModel>;
 
-pub fn generate(user_id: &str, input_objects: &Value) {
-    let models = json_converter::convert_to_internal_model(input_objects).unwrap();
-    file_creator::write_all(user_id, &models);
+pub fn generate<'a>(user_id: &'a str, input_objects: &'a Value) -> Result<(), JsonConverterError<'a>> {
+    let models = json_converter::convert_to_internal_model(input_objects)?;
+    file_creator::write_all(user_id, &models).unwrap();
+    Ok(())
 }
 
 #[cfg(test)]
@@ -28,6 +32,6 @@ mod tests {
     #[test]
     fn it_works() {
         let order_with_id = json!({"Order": {}, "OrderTwo": {}});
-        generate("user_id", &order_with_id);
+        assert!(generate("user_id", &order_with_id).is_ok())
     }
 }

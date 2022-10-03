@@ -1,5 +1,3 @@
-#![warn(clippy::unwrap_used)]
-
 use indexmap::IndexMap;
 use phf::phf_map;
 use serde::Deserialize;
