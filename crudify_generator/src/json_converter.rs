@@ -3,7 +3,7 @@ use phf::phf_map;
 use serde::Deserialize;
 use serde_json::{Map, Value};
 
-use crate::{errors::JsonConverterError, InternalModel, InternalModels};
+use crate::{errors::JsonConverterError, errors::JsonConverterError::AsObjectError, InternalModel, InternalModels};
 
 #[derive(Deserialize, Debug)]
 struct OA3Type {
@@ -46,7 +46,7 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
                 let data_type = parse_data_type(property_value)?;
                 property_map.insert(property_key.to_string(), data_type.to_string());
             } else {
-                return Err(JsonConverterError::AsObjectError { value: property_value });
+                return Err(AsObjectError(property_value));
             }
         }
     }
@@ -57,7 +57,7 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
 fn parse_data_type(property_value: &Value) -> Result<String, JsonConverterError> {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
-        Err(_) => Err(JsonConverterError::AsObjectError { value: property_value }),
+        Err(_) => AsObjectError(property_value),
         Ok(property_object) => {
             let oa3_type = property_object.get_format_or_type();
             if let Some(data_type) = DATATYPE_TO_RUST_DATATYPE.get(&oa3_type) {
@@ -70,11 +70,11 @@ fn parse_data_type(property_value: &Value) -> Result<String, JsonConverterError>
 }
 
 fn as_object(value: &Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(JsonConverterError::AsObjectError { value })
+    value.as_object().ok_or(AsObjectError(value ))
 }
 
 fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<&Map<String, Value>, JsonConverterError> {
-    value.as_object().ok_or(JsonConverterError::AsObjectError { value: ctx_value })
+    value.as_object().ok_or(AsObjectError(ctx_value ))
 }
 
 // https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
@@ -145,7 +145,7 @@ mod tests {
         let models = convert_to_internal_model(&order_with_id);
         assert!(models.is_err());
         assert_eq!(
-            JsonConverterError::AsObjectError { value: &json!("foobar") }.to_string(),
+            AsObjectError(value: &json!("foobar") }.to_string(),
             models.unwrap_err().to_string()
         );
     }
@@ -169,7 +169,7 @@ mod tests {
         let models = convert_to_internal_model(&order_with_id);
         assert!(models.is_err());
         assert_eq!(
-            JsonConverterError::AsObjectError { value: &json!({}) }.to_string(),
+            AsObjectError(value: &json!({}) }.to_string(),
             models.unwrap_err().to_string()
         );
     }
