@@ -1,10 +1,10 @@
+use crate::sql_creator::create_get_all_entities;
+use crate::InternalModels;
 use std::{
     fs::{self, File},
     io::{self, Write},
     path::PathBuf,
 };
-
-use crate::InternalModels;
 
 fn get_usages<'a>() -> &'a str {
     r#"use axum::{
@@ -14,30 +14,71 @@ fn get_usages<'a>() -> &'a str {
     routing::{delete, get, post, put},
     Extension, Router,    
 };
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres, PgPool};
+use serde::Serialize;
 use serde_json::{json, Value};
+use sqlx::{postgres::PgPoolOptions, Pool, Postgres, PgPool, Row};
  "#
+}
+
+fn get_structs(models: &InternalModels) -> String {
+    let mut code = "".to_string();
+
+    for model in models.iter() {
+        let properties: String = match &model.properties {
+            None => "".to_string(),
+            Some(properties) => {
+                let mut props_string: String = "".to_string();
+                for (key, value) in properties {
+                    props_string.push_str(&format!("{}: {},\n", key, value));
+                }
+                props_string
+            }
+        };
+        code.push_str(&format!("#[derive(Serialize)]\nstruct {} {{\n{}\n}}", model.name, properties))
+    }
+
+    code
 }
 
 fn get_routing_functions_code(models: &InternalModels) -> String {
     let mut code = "".to_string();
 
     for model in models.iter() {
-        code.push_str(&format!("async fn get_{}(Extension(pool): Extension<PgPool>) -> Json<Value> {{", model.name.to_lowercase()));
-        let fn_code = r#"
-            let res = sqlx::query("SELECT id, body FROM entity").fetch_all(&pool).await.unwrap();
+        code.push_str(&format!(
+            "async fn get_{}(Extension(pool): Extension<PgPool>) -> Json<Value> {{\n",
+            model.name.to_lowercase()
+        ));
+
+        code.push_str(&format!(
+            "let res = sqlx::query(\"{}\").fetch_all(&pool).await.unwrap();",
+            create_get_all_entities(model)
+        ));
+
+        let properties_string: String = match &model.properties {
+            None => "".to_string(),
+            Some(properties) => properties
+                .keys()
+                .map(|k| format!("{}: row.try_get({:?}).unwrap()", k, properties.get_index_of(k).expect("IndexMap did not return an index for key.")))
+                .collect::<Vec<_>>()
+                .join(",\n"),
+        };
+
+        let fn_code = format!(
+            r#"
             let entities = res
                 .into_iter()
-                .map(|row| Entity {
-                    id: row.try_get(0).unwrap(),
-                    body: row.try_get(1).unwrap(),
-                })
-                .collect::<Vec<Entity>>();
+                .map(|row| {} {{
+                    {}
+                }})
+                .collect::<Vec<{0}>>();
             Json(json!(entities))
-        }
+        }}
         
-        "#;
-        code.push_str(fn_code);
+        "#,
+            model.name, properties_string
+        )
+        .to_string();
+        code.push_str(&fn_code);
     }
 
     code.to_string()
@@ -93,7 +134,14 @@ fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
 }
 
 pub fn write_main_file(user_id: &str, models: &InternalModels) -> Result<(), io::Error> {
-    let code = format!("{}\n\n {} {} {}", get_usages(), get_routing_functions_code(models), get_main_fn_code(), create_app_fn(models));
+    let code = format!(
+        "{}\n\n {}\n\n {} {} {}",
+        get_usages(),
+        get_structs(models),
+        get_routing_functions_code(models),
+        get_main_fn_code(),
+        create_app_fn(models)
+    );
 
     let data_path = create_or_get_src_dir(user_id)?.join("main.rs");
     let mut main_rs = File::create(data_path)?;
