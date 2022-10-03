@@ -7,6 +7,7 @@ mod errors;
 mod file_creator;
 mod json_converter;
 mod main_file_creator;
+mod sql_creator;
 
 #[derive(Debug)]
 pub struct InternalModel {
