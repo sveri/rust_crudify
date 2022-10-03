@@ -1,17 +1,17 @@
 #![warn(clippy::unwrap_used)]
 
 use indexmap::IndexMap;
-use serde_json::{Value};
+use serde_json::Value;
 
-mod file_creator;
-mod main_file_creator;
-mod json_converter;
 mod errors;
+mod file_creator;
+mod json_converter;
+mod main_file_creator;
 
 #[derive(Debug)]
 pub struct InternalModel {
     pub name: String,
-    pub properties: Option<IndexMap<String, String>>
+    pub properties: Option<IndexMap<String, String>>,
 }
 
 pub type InternalModels = Vec<InternalModel>;
@@ -29,8 +29,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_works() {
-        let order_with_id = json!({"Order": {}, "OrderTwo": {}});
-        assert!(generate("user_id", &order_with_id).is_ok())
+    fn lib_generate_one_object_with_two_properties() {
+        let one_object_with_two_properties =
+            json!({"Order": {"type": "object", "properties": {"id": {"type": "integer", "format": "int64"}, "name": {"type": "string"}}}});
+        assert!(generate("user_id", &one_object_with_two_properties).is_ok())
     }
 }
