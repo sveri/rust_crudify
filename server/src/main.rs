@@ -48,7 +48,7 @@ async fn main() {
         .max_connections(15)
         .connect("postgres://postgres:postgres@localhost/postgres")
         .await
-        .expect("cannot connect to database");
+        .expect("cannot connect to database.");
 
     axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
         .serve(app(pool).into_make_service())

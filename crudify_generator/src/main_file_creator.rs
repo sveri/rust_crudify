@@ -7,10 +7,13 @@ use std::{
 };
 
 fn get_usages<'a>() -> &'a str {
-    r#"use axum::{
+    r#"
+use anyhow::{Context, Result as AnyResult};
+use axum::{
     body::Body,
     extract::Json,
-    http::Request,
+    http::{StatusCode, Request},
+    response::{IntoResponse, Response},
     routing::{delete, get, post, put},
     Extension, Router,    
 };
@@ -58,7 +61,13 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
             None => "".to_string(),
             Some(properties) => properties
                 .keys()
-                .map(|k| format!("{}: row.try_get({:?}).unwrap()", k, properties.get_index_of(k).expect("IndexMap did not return an index for key.")))
+                .map(|k| {
+                    format!(
+                        "{}: row.try_get({:?}).unwrap()",
+                        k,
+                        properties.get_index_of(k).expect("IndexMap did not return an index for key.")
+                    )
+                })
                 .collect::<Vec<_>>()
                 .join(",\n"),
         };
@@ -73,12 +82,25 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
                 .collect::<Vec<{0}>>();
             Json(json!(entities))
         }}
-        
+
         "#,
             model.name, properties_string
         )
         .to_string();
         code.push_str(&fn_code);
+
+        code.push_str(r#"
+
+        async fn post_order(order: Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError>{
+            let query = "INSERT INTO order (id, name) VALUES ($1, $2)";
+            let res = sqlx::query(query)
+                .bind(order.id)
+                .bind(&order.name)
+                .execute(&pool)
+                .await
+                .context(format!("Could not execute SQL: {}", query))?;
+            Ok(Json(json!("order")))
+        }"#);
     }
 
     code.to_string()
@@ -88,17 +110,24 @@ fn get_main_fn_code<'a>() -> &'a str {
     r#"
 
 #[tokio::main]
-async fn main() {
+async fn main() -> AnyResult<()> {
     let pool = PgPoolOptions::new()
         .max_connections(15)
         .connect("postgres://postgres:postgres@localhost/postgres")
         .await
         .expect("cannot connect to database");
 
+    match create_tables(&pool).await {
+        Ok(_) => println!("Created tables"),
+        Err(e) => eprintln!("Error while creating database tables: {:#}", e)
+    }
+    
+
     axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
         .serve(app(pool).into_make_service())
         .await
         .unwrap();
+    Ok(())
 }
 
     "#
@@ -126,6 +155,53 @@ fn app(pool: Pool<Postgres>) -> Router {
     code
 }
 
+fn create_sql_create_tables(models: &InternalModels) -> String {
+    r#"
+async fn create_tables(pool: &Pool<Postgres>) -> AnyResult<()> {
+    let query = "CREATE TABLE IF NOT EXISTS public.order (id bigint NULL, name text NULL);";
+    sqlx::query(query)
+        .execute(pool)
+        .await
+        .context(format!("Could not execute SQL: {}", query))?;
+    Ok(())
+}
+    "#
+    .to_string()
+}
+
+fn get_error_setup() -> String {
+    r#"
+enum AppError {
+    InternalServerError(anyhow::Error),
+}
+
+impl From<anyhow::Error> for AppError {
+    fn from(inner: anyhow::Error) -> Self {
+        AppError::InternalServerError(inner)
+    }
+}
+
+
+impl IntoResponse for AppError {
+    fn into_response(self) -> Response {
+        let (status, error_message) = match self {
+            AppError::InternalServerError(inner) => {
+                
+                (StatusCode::INTERNAL_SERVER_ERROR, inner.to_string())
+            }
+        };
+
+        let body = Json(json!({
+            "error": error_message,
+        }));
+
+        (status, body).into_response()
+    }
+}    
+    "#
+    .to_string()
+}
+
 fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
     let current_dir = std::env::current_dir()?;
     let data_path = current_dir.join("../").join(user_id).join("src");
@@ -135,12 +211,14 @@ fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
 
 pub fn write_main_file(user_id: &str, models: &InternalModels) -> Result<(), io::Error> {
     let code = format!(
-        "{}\n\n {}\n\n {} {} {}",
+        "{}\n\n {}\n\n {} {} {}\n {}\n {}",
         get_usages(),
         get_structs(models),
         get_routing_functions_code(models),
         get_main_fn_code(),
-        create_app_fn(models)
+        create_app_fn(models),
+        create_sql_create_tables(models),
+        get_error_setup()
     );
 
     let data_path = create_or_get_src_dir(user_id)?.join("main.rs");
