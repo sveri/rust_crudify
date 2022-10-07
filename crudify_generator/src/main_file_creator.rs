@@ -17,7 +17,7 @@ use axum::{
     routing::{delete, get, post, put},
     Extension, Router,    
 };
-use serde::Serialize;
+use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, PgPool, Row};
  "#
@@ -37,7 +37,7 @@ fn get_structs(models: &InternalModels) -> String {
                 props_string
             }
         };
-        code.push_str(&format!("#[derive(Serialize)]\nstruct {} {{\n{}\n}}", model.name, properties))
+        code.push_str(&format!("#[derive(Serialize, Deserialize)]\nstruct {} {{\n{}\n}}", model.name, properties))
     }
 
     code
