@@ -112,6 +112,12 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
                 let o: Order = order;
                 Ok(Json(json!(o)))
             }
+
+            async fn delete_order(Path(id): Path<i64>, Extension(pool): Extension<PgPool>) -> Result<(), AppError> {
+                let query = "DELETE FROM public.order WHERE id = $1";
+                sqlx::query(query).bind(id).execute(&pool).await?;
+                Ok(())
+            }
             "#,
         );
     }
@@ -161,9 +167,9 @@ fn app(pool: Pool<Postgres>) -> Router {
     for model in models.iter() {
         let name = model.name.to_lowercase();
         code.push_str(format!(".route(\"/api/{0}\", post(post_{0}))\n", name).as_str());
-        code.push_str(format!(".route(\"/api/{0}\", put(put_{0}))\n", name).as_str());
+        code.push_str(format!(".route(\"/api/{0}\", put(put_{0}/:id))\n", name).as_str());
         code.push_str(format!(".route(\"/api/{0}\", get(get_{0}))\n", name).as_str());
-        code.push_str(format!(".route(\"/api/{0}\", delete(delete_{0}))\n", name).as_str());
+        code.push_str(format!(".route(\"/api/{0}\", delete(delete_{0}/:id))\n", name).as_str());
     }
     code.push_str(
         r#".merge(axum_extra::routing::SpaRouter::new("/assets", "../dist"))
