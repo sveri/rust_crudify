@@ -8,7 +8,9 @@ use std::{
 
 fn get_usages<'a>() -> &'a str {
     r#"
-use anyhow::{Context, Result as AnyResult};
+use std::{
+    fmt::{Display, Formatter},
+};
 use axum::{
     body::Body,
     extract::Json,
@@ -20,6 +22,9 @@ use axum::{
 use serde::{Serialize, Deserialize};
 use serde_json::{json, Value};
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres, PgPool, Row};
+use thiserror::Error;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
  "#
 }
 
@@ -37,7 +42,10 @@ fn get_structs(models: &InternalModels) -> String {
                 props_string
             }
         };
-        code.push_str(&format!("#[derive(Serialize, Deserialize)]\nstruct {} {{\n{}\n}}", model.name, properties))
+        code.push_str(&format!(
+            "#[derive(Serialize, Deserialize)]\nstruct {} {{\n{}\n}}",
+            model.name, properties
+        ))
     }
 
     code
@@ -89,18 +97,14 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
         .to_string();
         code.push_str(&fn_code);
 
-        code.push_str(r#"
-
-        async fn post_order(order: Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError>{
+        code.push_str(
+            r#"
+        async fn post_order(order: Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
             let query = "INSERT INTO order (id, name) VALUES ($1, $2)";
-            let res = sqlx::query(query)
-                .bind(order.id)
-                .bind(&order.name)
-                .execute(&pool)
-                .await
-                .context(format!("Could not execute SQL: {}", query))?;
+            let res = sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
             Ok(Json(json!("order")))
-        }"#);
+        }"#,
+        );
     }
 
     code.to_string()
@@ -110,7 +114,14 @@ fn get_main_fn_code<'a>() -> &'a str {
     r#"
 
 #[tokio::main]
-async fn main() -> AnyResult<()> {
+async fn main() -> Result<(), AppError> {
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::EnvFilter::new(
+            std::env::var("RUST_LOG").unwrap_or_else(|_| "trace".into()),
+        ))
+        .with(tracing_subscriber::fmt::layer())
+        .init();
+
     let pool = PgPoolOptions::new()
         .max_connections(15)
         .connect("postgres://postgres:postgres@localhost/postgres")
@@ -120,6 +131,11 @@ async fn main() -> AnyResult<()> {
     match create_tables(&pool).await {
         Ok(_) => println!("Created tables"),
         Err(e) => eprintln!("Error while creating database tables: {:#}", e)
+    }
+
+    match create_tables(&pool).await {
+        Ok(_) => println!("Created tables"),
+        Err(e) => eprintln!("Error while creating database tables: {:?}", e),
     }
     
 
@@ -157,47 +173,71 @@ fn app(pool: Pool<Postgres>) -> Router {
 
 fn create_sql_create_tables(models: &InternalModels) -> String {
     r#"
-async fn create_tables(pool: &Pool<Postgres>) -> AnyResult<()> {
+async fn create_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
     let query = "CREATE TABLE IF NOT EXISTS public.order (id bigint NULL, name text NULL);";
-    sqlx::query(query)
-        .execute(pool)
-        .await
-        .context(format!("Could not execute SQL: {}", query))?;
+    sqlx::query(query).execute(pool).await?;
     Ok(())
-}
+}    
     "#
     .to_string()
 }
 
 fn get_error_setup() -> String {
     r#"
-enum AppError {
-    InternalServerError(anyhow::Error),
+#[derive(Serialize, Debug, Error)]
+pub struct AppError {
+    status_code: u16,
+    errors: Vec<String>,
 }
 
-impl From<anyhow::Error> for AppError {
-    fn from(inner: anyhow::Error) -> Self {
-        AppError::InternalServerError(inner)
+impl Display for AppError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&format!("Err {} ", &self.status_code))
     }
 }
 
+impl From<sqlx::Error> for AppError {
+    fn from(e: sqlx::Error) -> Self {
+        tracing::error!("SQL error: {:?}", e);
+        AppError::new_internal(e.to_string())
+    }
+}
+
+impl AppError {
+    pub fn new(status_code: u16, err: String) -> Self {
+        AppError {
+            status_code,
+            errors: vec![err],
+        }
+    }
+
+    pub fn new_internal(err: String) -> Self {
+        AppError {
+            status_code: StatusCode::INTERNAL_SERVER_ERROR.as_u16(),
+            errors: vec![err],
+        }
+    }
+    pub fn new_bad_request(err: String) -> Self {
+        AppError {
+            status_code: StatusCode::BAD_REQUEST.as_u16(),
+            errors: vec![err],
+        }
+    }
+
+    pub fn append_error(&mut self, err: String) {
+        let _ = &self.errors.push(err);
+    }
+}
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, error_message) = match self {
-            AppError::InternalServerError(inner) => {
-                
-                (StatusCode::INTERNAL_SERVER_ERROR, inner.to_string())
-            }
-        };
-
-        let body = Json(json!({
-            "error": error_message,
-        }));
-
-        (status, body).into_response()
+        (
+            StatusCode::from_u16(self.status_code).unwrap(),
+            serde_json::to_string(&self).unwrap(),
+        )
+            .into_response()
     }
-}    
+}   
     "#
     .to_string()
 }

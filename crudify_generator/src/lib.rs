@@ -1,5 +1,7 @@
 #![warn(clippy::unwrap_used)]
 
+use std::process::Command;
+
 use indexmap::IndexMap;
 use serde_json::Value;
 
@@ -20,6 +22,12 @@ pub type InternalModels = Vec<InternalModel>;
 pub fn generate<'a>(user_id: &'a str, input_objects: &'a Value) -> Result<(), Box<dyn std::error::Error + 'a>> {
     let models = json_converter::convert_to_internal_model(input_objects)?;
     file_creator::write_all(user_id, &models)?;
+
+    Command::new("cargo")
+        .current_dir(file_creator::create_or_get_project_dir(user_id)?)
+        .arg("fmt")
+        .spawn()?;
+
     Ok(())
 }
 

@@ -4,7 +4,7 @@ use super::InternalModels;
 
 use super::main_file_creator::write_main_file;
 
-fn create_or_get_project_dir(user_id: &str) -> Result<PathBuf, std::io::Error> {
+pub fn create_or_get_project_dir(user_id: &str) -> Result<PathBuf, std::io::Error> {
     let current_dir = std::env::current_dir()?;
     let data_path = current_dir.join("../").join(user_id);
     fs::create_dir_all(&data_path)?;
