@@ -99,11 +99,12 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
 
         code.push_str(
             r#"
-        async fn post_order(order: Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
-            let query = "INSERT INTO order (id, name) VALUES ($1, $2)";
-            let res = sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
-            Ok(Json(json!("order")))
-        }"#,
+            async fn post_order(Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
+                let query = "INSERT INTO public.order (id, name) VALUES ($1, $2)";
+                sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
+                let o: Order = order;
+                Ok(Json(json!(o)))
+            }"#,
         );
     }
 
@@ -132,12 +133,6 @@ async fn main() -> Result<(), AppError> {
         Ok(_) => println!("Created tables"),
         Err(e) => eprintln!("Error while creating database tables: {:#}", e)
     }
-
-    match create_tables(&pool).await {
-        Ok(_) => println!("Created tables"),
-        Err(e) => eprintln!("Error while creating database tables: {:?}", e),
-    }
-    
 
     axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
         .serve(app(pool).into_make_service())
