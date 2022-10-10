@@ -13,7 +13,7 @@ use std::{
 };
 use axum::{
     body::Body,
-    extract::Json,
+    extract::{Json, Path},
     http::{StatusCode, Request},
     response::{IntoResponse, Response},
     routing::{delete, get, post, put},
@@ -104,7 +104,15 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
                 sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
                 let o: Order = order;
                 Ok(Json(json!(o)))
-            }"#,
+            }"
+            
+            async fn put_order(Path(id): Path<i64>, Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
+                let query = "UPDATE public.order SET id = $1, name = $2 WHERE id = $1";
+                sqlx::query(query).bind(id).bind(&order.name).execute(&pool).await?;
+                let o: Order = order;
+                Ok(Json(json!(o)))
+            }
+            #,
         );
     }
 
