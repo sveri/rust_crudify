@@ -22,11 +22,16 @@ pub fn create_create_entity(model: &InternalModel) -> String {
 
     let fields = format!(
         "({})",
-        model.properties.as_ref().map_or_else(Default::default, |properties| properties
+        model.properties.as_ref().map(|properties| properties
             .keys()
             .map(|p| p.as_ref())
             .collect::<Vec<_>>()
-            .join(", "))
+            .join(", ")).unwrap_or_default()
+            // model.properties.as_ref().map_or_else(Default::default, |properties| properties
+            //     .keys()
+            //     .map(|p| p.as_ref())
+            //     .collect::<Vec<_>>()
+            //     .join(", "))
     );
 
     sql.push_str(&fields);
