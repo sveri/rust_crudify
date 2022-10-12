@@ -31,7 +31,9 @@ pub fn create_create_entity(model: &InternalModel) -> String {
     let values: String = match &model.properties {
         None => "".to_string(),
         Some(properties) => {
-            format!("({})", properties.keys().map(|_| "?").collect::<Vec<_>>().join(", "))
+            
+            format!("({})", properties.keys().map(|_| "?").collect::<Vec<_>>().join(", "));
+            format!("({})", (1..properties.keys().len() + 1).map(|idx| format!("${}", idx)).collect::<Vec<_>>().join(", "))
         }
     };
 
@@ -105,7 +107,7 @@ mod tests {
     #[test]
     fn test_create_entity_with_multiple_properties() {
         let props = indexmap! {"id".to_string() => "i64".to_string(), "name".to_string() => "Sting".to_string()};
-        let expected = "INSERT INTO public.order (id, name) VALUES (?, ?)";
+        let expected = "INSERT INTO public.order (id, name) VALUES ($1, $2)";
         assert_eq!(
             expected,
             create_create_entity(&InternalModel::new_with_props("Order".to_string(), props))
@@ -115,7 +117,7 @@ mod tests {
     #[test]
     fn test_create_entity_with_one_property() {
         let props = indexmap! {"id".to_string() => "i64".to_string()};
-        let expected = "INSERT INTO public.order (id) VALUES (?)";
+        let expected = "INSERT INTO public.order (id) VALUES ($1)";
         assert_eq!(
             expected,
             create_create_entity(&InternalModel::new_with_props("Order".to_string(), props))

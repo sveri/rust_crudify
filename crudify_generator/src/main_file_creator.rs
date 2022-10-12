@@ -1,4 +1,4 @@
-use crate::sql_creator::create_get_all_entities;
+use crate::sql_creator::{create_get_all_entities, create_create_entity};
 use crate::InternalModels;
 use std::{
     fs::{self, File},
@@ -58,20 +58,20 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
             "async fn get_{}(Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {{\n
                 let res: Vec<{}> = sqlx::query_as(\"{}\").fetch_all(&pool).await?;
                 Ok(Json(json!(res)))
-        }}",
+        }}\n",
             model.name.to_lowercase(), model.name, create_get_all_entities(model)
         ));
 
         code.push_str(
-            r#"
-            async fn post_order(Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
-                let query = "INSERT INTO public.order (id, name) VALUES ($1, $2)";
+            &format!(r#"
+            async fn post_{}(Json({0}): Json<{}>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {{
+                let query = "{}";
                 sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
-                let o: Order = order;
-                Ok(Json(json!(o)))
-            }
+                Ok(Json(json!({0})))
+            }}"#, model.name.to_lowercase(), model.name, create_create_entity(model)));
 
-            async fn put_order(Path(id): Path<i64>, Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
+        code.push_str(
+                r#"    async fn put_order(Path(id): Path<i64>, Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
                 let query = "UPDATE public.order SET id = $1, name = $2 WHERE id = $1";
                 sqlx::query(query).bind(id).bind(&order.name).execute(&pool).await?;
                 let o: Order = order;
@@ -113,10 +113,10 @@ async fn main() -> Result<(), AppError> {
         Err(e) => eprintln!("Error while creating database tables: {:#}", e)
     }
 
-    axum::Server::bind(&"127.0.0.1:8000".parse().unwrap())
+    axum::Server::bind(&"127.0.0.1:8000".parse().expect("Expected a parsable URI to start a server on"))
         .serve(app(pool).into_make_service())
         .await
-        .unwrap();
+        .expect("Could not start server");
     Ok(())
 }
 
