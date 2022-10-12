@@ -1,3 +1,5 @@
+use indexmap::{indexmap, IndexMap};
+
 use crate::InternalModel;
 
 pub fn create_get_all_entities(model: &InternalModel) -> String {
@@ -18,12 +20,14 @@ pub fn create_create_entity(model: &InternalModel) -> String {
     let mut sql: String = "INSERT INTO ".to_string();
     sql.push_str(&format!("public.{} ", &model.name.to_lowercase()));
 
-    let fields: String = match &model.properties {
-        None => "".to_string(),
-        Some(properties) => {
-            format!("({})", properties.keys().map(|p| p.as_ref()).collect::<Vec<_>>().join(", "))
-        }
-    };
+    let fields = format!(
+        "({})",
+        model.properties.as_ref().map_or_else(Default::default, |properties| properties
+            .keys()
+            .map(|p| p.as_ref())
+            .collect::<Vec<_>>()
+            .join(", "))
+    );
 
     sql.push_str(&fields);
     sql.push_str(" VALUES ");
@@ -31,9 +35,13 @@ pub fn create_create_entity(model: &InternalModel) -> String {
     let values: String = match &model.properties {
         None => "".to_string(),
         Some(properties) => {
-            
-            format!("({})", properties.keys().map(|_| "?").collect::<Vec<_>>().join(", "));
-            format!("({})", (1..properties.keys().len() + 1).map(|idx| format!("${}", idx)).collect::<Vec<_>>().join(", "))
+            format!(
+                "({})",
+                (1..properties.keys().len() + 1)
+                    .map(|idx| format!("${}", idx))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            )
         }
     };
 
@@ -87,7 +95,7 @@ mod tests {
     #[test]
     fn test_update_entity_with_multiple_properties() {
         let props = indexmap! {"id".to_string() => "i64".to_string(), "name".to_string() => "Sting".to_string()};
-        let expected = "UPDATE public.order SET id = ?, name = ? WHERE id = ?";
+        let expected = "UPDATE public.order SET id = $1, name = $2 WHERE id = $1";
         assert_eq!(
             expected,
             create_update_entity(&InternalModel::new_with_props("Order".to_string(), props))
@@ -97,7 +105,7 @@ mod tests {
     #[test]
     fn test_update_entity_with_one_properties() {
         let props = indexmap! {"id".to_string() => "i64".to_string()};
-        let expected = "UPDATE public.order SET id = ? WHERE id = ?";
+        let expected = "UPDATE public.order SET id = $1 WHERE id = $1";
         assert_eq!(
             expected,
             create_update_entity(&InternalModel::new_with_props("Order".to_string(), props))
