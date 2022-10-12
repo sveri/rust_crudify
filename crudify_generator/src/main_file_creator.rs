@@ -65,11 +65,7 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
         let binds: String = match &model.properties {
             None => "".to_string(),
             Some(properties) => {
-                let mut props_string: String = "".to_string();
-                for (key, value) in properties {
-                    props_string.push_str(&format!(".bind(&{}.{})", model.name.to_lowercase(), value));
-                }
-                props_string
+                properties.keys().into_iter().map(|k| format!(".bind(&{}.{})", model.name.to_lowercase(), k)).collect()
             }
         };
 
@@ -78,7 +74,6 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
             async fn post_{}(Json({0}): Json<{}>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {{
                 let query = "{}";
                 sqlx::query(query){}.execute(&pool).await?;
-                sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
                 Ok(Json(json!({0})))
             }}"#, model.name.to_lowercase(), model.name, create_create_entity(model), binds));
 
