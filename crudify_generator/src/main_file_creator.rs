@@ -62,13 +62,25 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
             model.name.to_lowercase(), model.name, create_get_all_entities(model)
         ));
 
+        let binds: String = match &model.properties {
+            None => "".to_string(),
+            Some(properties) => {
+                let mut props_string: String = "".to_string();
+                for (key, value) in properties {
+                    props_string.push_str(&format!(".bind(&{}.{})", model.name.to_lowercase(), value));
+                }
+                props_string
+            }
+        };
+
         code.push_str(
             &format!(r#"
             async fn post_{}(Json({0}): Json<{}>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {{
                 let query = "{}";
+                sqlx::query(query){}.execute(&pool).await?;
                 sqlx::query(query).bind(order.id).bind(&order.name).execute(&pool).await?;
                 Ok(Json(json!({0})))
-            }}"#, model.name.to_lowercase(), model.name, create_create_entity(model)));
+            }}"#, model.name.to_lowercase(), model.name, create_create_entity(model), binds));
 
         code.push_str(
                 r#"    async fn put_order(Path(id): Path<i64>, Json(order): Json<Order>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {
