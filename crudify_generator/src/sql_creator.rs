@@ -53,10 +53,11 @@ pub fn create_create_entity(model: &InternalModel) -> String {
 pub fn create_update_entity(model: &InternalModel) -> String {
     let fields: String = match &model.properties {
         None => "".to_string(),
-        Some(properties) => properties.keys().map(|p| format!("{} = ?", p)).collect::<Vec<_>>().join(", "),
+        Some(properties) => (1..properties.keys().len() + 1).map(|idx| format!("${}", idx)).collect::<Vec<_>>().join(", "),
+        // Some(properties) => properties.keys().map(|p| format!("{} = ?", p)).collect::<Vec<_>>().join(", "),
     };
 
-    format!("UPDATE public.{} SET {} WHERE id = ?", model.name.to_lowercase(), fields)
+    format!("UPDATE public.{} SET {} WHERE id = $1", model.name.to_lowercase(), fields)
 }
 
 pub fn create_delete_entity(model: &InternalModel) -> String {
