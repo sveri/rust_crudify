@@ -1,3 +1,5 @@
+use std::{fmt::Display, u8};
+
 use indexmap::IndexMap;
 use phf::phf_map;
 use serde::Deserialize;
@@ -37,14 +39,14 @@ pub fn convert_to_internal_model(j: &Value) -> Result<InternalModels, JsonConver
     Ok(internal_models)
 }
 
-fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConverterError> {
-    let mut property_map: IndexMap<String, String> = IndexMap::new();
+fn parse_properties(value: &Value) -> Result<IndexMap<String, RustDataType>, JsonConverterError> {
+    let mut property_map: IndexMap<String, RustDataType> = IndexMap::new();
     let o = as_object(value)?;
     if let Some(properties) = o.get("properties") {
         for (property_key, property_value) in as_object_with_context(properties, value)? {
             if property_value.is_object() {
                 let data_type = parse_data_type(property_value)?;
-                property_map.insert(property_key.to_string(), data_type.to_string());
+                property_map.insert(property_key.to_string(), data_type);
             } else {
                 return Err(AsObjectError(property_value));
             }
@@ -54,16 +56,16 @@ fn parse_properties(value: &Value) -> Result<IndexMap<String, String>, JsonConve
     Ok(property_map)
 }
 
-fn parse_data_type(property_value: &Value) -> Result<String, JsonConverterError> {
+fn parse_data_type(property_value: &Value) -> Result<RustDataType, JsonConverterError> {
     let parsed_object: Result<OA3Type, serde_json::Error> = serde_json::from_value(property_value.to_owned());
     match parsed_object {
         Err(_) => Err(AsObjectError(property_value)),
         Ok(property_object) => {
             let oa3_type = property_object.get_format_or_type();
             if let Some(data_type) = DATATYPE_TO_RUST_DATATYPE.get(&oa3_type) {
-                Ok(data_type.to_string())
+                Ok(*data_type)
             } else {
-                Ok("String".to_string())
+                Ok(RustDataType::String)
             }
         }
     }
@@ -77,20 +79,49 @@ fn as_object_with_context<'a>(value: &'a Value, ctx_value: &'a Value) -> Result<
     value.as_object().ok_or(AsObjectError(ctx_value))
 }
 
+#[derive(Copy, Clone, Debug)]
+pub enum RustDataType {
+    U8,
+    I32,
+    I64,
+    String,
+    Bool,
+    F32,
+    F64,
+    Date,
+    DateTime
+}
+
+impl Display for RustDataType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            RustDataType::U8 => write!(f, "u8"),
+            RustDataType::I32 => write!(f, "i32"),
+            RustDataType::I64 => write!(f, "i64"),
+            RustDataType::String => write!(f, "String"),
+            RustDataType::Bool => write!(f, "bool"),
+            RustDataType::F32 => write!(f, "f32"),
+            RustDataType::F64 => write!(f, "f64"),
+            RustDataType::Date => write!(f, "chrono::Date"),
+            RustDataType::DateTime => write!(f, "chrono::DateTime"),
+        }
+    }
+}
+
 // https://github.com/OAI/OpenAPI-Specification/blob/main/versions/3.0.3.md#schema-object
-static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, &'static str> = phf_map! {
-    "integer" => "i64",
-    "string" => "String",
-    "boolean" => "bool",
-    "number" => "f64",
-    "int64" => "i64",
-    "int32" => "i32",
-    "date" => "chrono::Date",
-    "date-time" => "chrono::DateTime",
-    "password" => "String",
-    "byte" => "u8",
-    "float" => "f32",
-    "double" => "f64"
+static DATATYPE_TO_RUST_DATATYPE: phf::Map<&'static str, RustDataType> = phf_map! {
+    "integer" => RustDataType::I64,
+    "string" => RustDataType::String,
+    "boolean" => RustDataType::Bool,
+    "number" => RustDataType::F64,
+    "int64" => RustDataType::I64,
+    "int32" => RustDataType::I32,
+    "date" => RustDataType::Date,
+    "date-time" => RustDataType::DateTime,
+    "password" => RustDataType::String,
+    "byte" => RustDataType::U8,
+    "float" => RustDataType::F32,
+    "double" => RustDataType::F64
 };
 
 #[cfg(test)]

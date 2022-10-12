@@ -3,6 +3,7 @@
 use std::process::Command;
 
 use indexmap::IndexMap;
+use json_converter::RustDataType;
 use serde_json::Value;
 
 mod errors;
@@ -14,7 +15,7 @@ mod sql_creator;
 #[derive(Debug)]
 pub struct InternalModel {
     pub name: String,
-    pub properties: Option<IndexMap<String, String>>,
+    pub properties: Option<IndexMap<String, RustDataType>>,
 }
 
 pub type InternalModels = Vec<InternalModel>;

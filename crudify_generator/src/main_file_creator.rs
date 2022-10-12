@@ -1,4 +1,4 @@
-use crate::sql_creator::{create_get_all_entities, create_create_entity, create_update_entity};
+use crate::sql_creator::{create_get_all_entities, create_create_entity, create_update_entity, create_delete_entity, create_create_table};
 use crate::InternalModels;
 use std::{
     fs::{self, File},
@@ -93,13 +93,13 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
                 Ok(Json(json!(order)))
             }}"#, model.name.to_lowercase(), model.name, create_update_entity(model), binds_without_id));
 
-        code.push_str(r#"
-            async fn delete_order(Path(id): Path<i64>, Extension(pool): Extension<PgPool>) -> Result<(), AppError> {
-                let query = "DELETE FROM public.order WHERE id = $1";
+        code.push_str(&format!(r#"
+            async fn delete_order(Path(id): Path<i64>, Extension(pool): Extension<PgPool>) -> Result<(), AppError> {{
+                let query = "{}";
                 sqlx::query(query).bind(id).execute(&pool).await?;
                 Ok(())
-            }
-            "#,
+            }}
+            "#, create_delete_entity(model))
         );
     }
 
@@ -162,17 +162,58 @@ fn app(pool: Pool<Postgres>) -> Router {
 }
 
 fn create_sql_create_tables(models: &InternalModels) -> String {
-    r#"
-async fn create_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {
-    let query = "CREATE TABLE IF NOT EXISTS public.order (id bigint NULL, name text NULL);";
-    sqlx::query(query).execute(pool).await?;
-    Ok(())
-}    
-    "#
-    .to_string()
+
+    let mut code = "async fn create_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {\n".to_string();
+
+    for model in models {
+        code.push_str(&format!(r#"let query = "{}";
+        sqlx::query(query).execute(pool).await?;"#, create_create_table(model)));
+    }
+
+//     models.iter().map(|model| format!(r#"let query = "{}";
+//     sqlx::query(query).execute(pool).await?;"#, create_create_table(model)))
+//    format!(r#"
+// async fn create_tables(pool: &Pool<Postgres>) -> Result<(), AppError> {{
+//     let query = "{}";
+//     sqlx::query(query).execute(pool).await?;
+//     Ok(())
+// }}    
+//     "#, create_create_table(model))
+//     .to_string();
+
+    code.push_str("\nOk(())\n}");
+
+    code
 }
 
-fn get_error_setup() -> String {
+fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
+    let current_dir = std::env::current_dir()?;
+    let data_path = current_dir.join("../").join(user_id).join("src");
+    fs::create_dir_all(&data_path)?;
+    Ok(data_path)
+}
+
+pub fn write_main_file(user_id: &str, models: &InternalModels) -> Result<(), io::Error> {
+    let code = format!(
+        "{}\n\n {}\n\n {} {} {}\n\n {}\n\n {}",
+        get_usages(),
+        get_structs(models),
+        get_routing_functions_code(models),
+        get_main_fn_code(),
+        create_app_fn(models),
+        create_sql_create_tables(models),
+        ERROR_SETUP
+    );
+
+    let data_path = create_or_get_src_dir(user_id)?.join("main.rs");
+    let mut main_rs = File::create(data_path)?;
+
+    main_rs.write_all(code.as_bytes())?;
+    Ok(())
+}
+
+
+const ERROR_SETUP: &str = 
     r#"
 #[derive(Serialize, Debug, Error)]
 pub struct AppError {
@@ -228,32 +269,4 @@ impl IntoResponse for AppError {
             .into_response()
     }
 }   
-    "#
-    .to_string()
-}
-
-fn create_or_get_src_dir(user_id: &str) -> Result<PathBuf, io::Error> {
-    let current_dir = std::env::current_dir()?;
-    let data_path = current_dir.join("../").join(user_id).join("src");
-    fs::create_dir_all(&data_path)?;
-    Ok(data_path)
-}
-
-pub fn write_main_file(user_id: &str, models: &InternalModels) -> Result<(), io::Error> {
-    let code = format!(
-        "{}\n\n {}\n\n {} {} {}\n {}\n {}",
-        get_usages(),
-        get_structs(models),
-        get_routing_functions_code(models),
-        get_main_fn_code(),
-        create_app_fn(models),
-        create_sql_create_tables(models),
-        get_error_setup()
-    );
-
-    let data_path = create_or_get_src_dir(user_id)?.join("main.rs");
-    let mut main_rs = File::create(data_path)?;
-
-    main_rs.write_all(code.as_bytes())?;
-    Ok(())
-}
+    "#;
