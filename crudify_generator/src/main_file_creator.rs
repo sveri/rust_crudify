@@ -79,20 +79,19 @@ fn get_routing_functions_code(models: &InternalModels) -> String {
 
             
 
-        // let binds_without_id = match &model.properties {
-        //     None => "".to_string(),
-        //     Some(properties) => {
-        //         properties.keys().into_iter().map(|k| k != "id" ? format!(".bind(&{}.{})", model.name.to_lowercase(), k)).collect()
-        //     }
-        // };
+        let binds_without_id = match &model.properties {
+            None => "".to_string(),
+            Some(properties) => {
+                properties.keys().into_iter().filter(|k| *k != &"id".to_string()).map(|k| format!(".bind(&{}.{})", model.name.to_lowercase(), k)).collect()
+            }
+        };
 
         code.push_str(&format!(
                 r#"    async fn put_{}(Path(id): Path<i64>, Json({0}): Json<{}>, Extension(pool): Extension<PgPool>) -> Result<Json<Value>, AppError> {{
                 let query = "{}";
-                sqlx::query(query).bind(id).bind(&order.name).execute(&pool).await?;
-                let o: Order = order;
-                Ok(Json(json!(o)))
-            }}"#, model.name.to_lowercase(), model.name, create_update_entity(model)));
+                sqlx::query(query).bind(id){}.execute(&pool).await?;
+                Ok(Json(json!(order)))
+            }}"#, model.name.to_lowercase(), model.name, create_update_entity(model), binds_without_id));
 
         code.push_str(r#"
             async fn delete_order(Path(id): Path<i64>, Extension(pool): Extension<PgPool>) -> Result<(), AppError> {

@@ -22,16 +22,11 @@ pub fn create_create_entity(model: &InternalModel) -> String {
 
     let fields = format!(
         "({})",
-        model.properties.as_ref().map(|properties| properties
-            .keys()
-            .map(|p| p.as_ref())
-            .collect::<Vec<_>>()
-            .join(", ")).unwrap_or_default()
-            // model.properties.as_ref().map_or_else(Default::default, |properties| properties
-            //     .keys()
-            //     .map(|p| p.as_ref())
-            //     .collect::<Vec<_>>()
-            //     .join(", "))
+        model
+            .properties
+            .as_ref()
+            .map(|properties| properties.keys().map(|p| p.as_ref()).collect::<Vec<_>>().join(", "))
+            .unwrap_or_default()
     );
 
     sql.push_str(&fields);
@@ -58,9 +53,13 @@ pub fn create_create_entity(model: &InternalModel) -> String {
 pub fn create_update_entity(model: &InternalModel) -> String {
     let fields: String = match &model.properties {
         None => "".to_string(),
-        Some(properties) => {
-            properties.keys().enumerate().into_iter().map(|(idx, k)| format!("{} = ${}", k, idx + 1)).collect::<Vec<_>>().join(", ")
-        }
+        Some(properties) => properties
+            .keys()
+            .enumerate()
+            .into_iter()
+            .map(|(idx, k)| format!("{} = ${}", k, idx + 1))
+            .collect::<Vec<_>>()
+            .join(", "),
     };
 
     format!("UPDATE public.{} SET {} WHERE id = $1", model.name.to_lowercase(), fields)
